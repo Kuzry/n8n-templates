@@ -1,0 +1,314 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "c47dd168-a143-4a1b-a3a3-b419bd1d07b3",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -2140,
+        -260
+      ],
+      "id": "19945c85-ecbb-4e5c-8a2d-5ab278c0c593",
+      "name": "Webhook - Shoper - Zamówienie",
+      "webhookId": "c47dd168-a143-4a1b-a3a3-b419bd1d07b3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require(\"crypto\"),\n  webhookId = $(\"Webhook - Shoper - Zamówienie\").first().json.headers[\"x-webhook-id\"],\n  webhookKey = $input.first().json.shoper_webhook_key,\n  body = JSON.stringify($('Webhook - Shoper - Zamówienie').first().json.body).replace(/[\\u00A0-\\u9999<>\\&]/gim, function(char) {\n    return '\\\\u' + char.charCodeAt(0).toString(16).padStart(4, '0');\n  });\n\nreturn {\n  signature_verified: $('Webhook - Shoper - Zamówienie').first().json.headers[\"x-webhook-sha1\"] === crypto.hash(\"sha1\", `${webhookId}:${webhookKey}:${body}`),\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1700,
+        -260
+      ],
+      "id": "838fbcda-e687-49a9-bc86-0da391df1741",
+      "name": "Weryfikacja podpisu Shoper"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cf36c7ea-28f0-48a9-b94b-f4898e0dc45e",
+              "leftValue": "={{ $json.signature_verified }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1480,
+        -260
+      ],
+      "id": "975bdf67-661d-481b-bef2-e866820dae05",
+      "name": "Czy weryfikacja podpisu Shoper powiodła się?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "309c1e95-e9f6-45eb-b7ce-e10cfc40d236",
+              "name": "shoper_webhook_key",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "052122ec-75c5-449b-8d2a-fac03d96e472",
+              "name": "shoper_base_url",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "e4caa7d6-e1d9-4c16-8ed3-513a2677c692",
+              "name": "active_campaign_base_url",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1920,
+        -260
+      ],
+      "id": "179c8ecb-eee3-4180-b362-870aeeb4c73b",
+      "name": "Zmienne"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $(\"Zmienne\").item.json.shoper_base_url }}/webapi/rest/auth",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1260,
+        -260
+      ],
+      "id": "cf6cd7e7-a1e4-43c7-aa04-e6df79b80156",
+      "name": "Shoper - Auth",
+      "credentials": {
+        "httpBasicAuth": {
+
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Zmienne').item.json.shoper_base_url }}/webapi/rest/users/{{ $('Webhook - Shoper - Zamówienie').item.json.body.user_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $(\"Shoper - Auth\").item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1040,
+        -260
+      ],
+      "id": "125dce27-1d08-42d7-90e7-3b64ad1dd042",
+      "name": "Pobranie użytkownika Shoper"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Zmienne').item.json.active_campaign_base_url }}/api/3/contacts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "activeCampaignApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contact\": {\n    \"email\": \"{{ $('Webhook - Shoper - Zamówienie').item.json.body.email }}\",\n    \"firstName\": \"{{ $('Pobranie użytkownika Shoper').item.json.firstname }}\",\n    \"lastName\": \"{{ $('Pobranie użytkownika Shoper').item.json.lastname }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -380,
+        -260
+      ],
+      "id": "abca0182-d86b-46b1-b64f-80eb14906f2c",
+      "name": "Dodanie kontaktu ActiveCampaign"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Zmienne').item.json.active_campaign_base_url }}/api/3/contacts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "activeCampaignApi",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={\n  \"email\": \"{{ $(\"Pobranie użytkownika Shoper\").item.json.email }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -820,
+        -260
+      ],
+      "id": "edb22d55-3147-45e9-bea1-03975595ede8",
+      "name": "Pobranie użytkowników ActiveCampaign o przesłanym adresie e-mail z Shoper"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4a29bdf6-a797-456a-a6b1-f50c4f051119",
+              "leftValue": "={{ $(\"Pobranie użytkowników ActiveCampaign o przesłanym adresie e-mail z Shoper\").item.json.contacts }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -600,
+        -260
+      ],
+      "id": "ad389ebf-17b6-4bec-af63-3c5a14d20972",
+      "name": "Czy użytkownik już istnieje w ActiveCampaign?"
+    }
+  ],
+  "connections": {
+    "Webhook - Shoper - Zamówienie": {
+      "main": [
+        [
+          {
+            "node": "Zmienne",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weryfikacja podpisu Shoper": {
+      "main": [
+        [
+          {
+            "node": "Czy weryfikacja podpisu Shoper powiodła się?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Czy weryfikacja podpisu Shoper powiodła się?": {
+      "main": [
+        [
+          {
+            "node": "Shoper - Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zmienne": {
+      "main": [
+        [
+          {
+            "node": "Weryfikacja podpisu Shoper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shoper - Auth": {
+      "main": [
+        [
+          {
+            "node": "Pobranie użytkownika Shoper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pobranie użytkownika Shoper": {
+      "main": [
+        [
+          {
+            "node": "Pobranie użytkowników ActiveCampaign o przesłanym adresie e-mail z Shoper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pobranie użytkowników ActiveCampaign o przesłanym adresie e-mail z Shoper": {
+      "main": [
+        [
+          {
+            "node": "Czy użytkownik już istnieje w ActiveCampaign?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Czy użytkownik już istnieje w ActiveCampaign?": {
+      "main": [
+        [
+          {
+            "node": "Dodanie kontaktu ActiveCampaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "639d661fa680b28a6d4da7db73993376b72091e26a324f68f287b30f1d541cfc"
+  }
+}
